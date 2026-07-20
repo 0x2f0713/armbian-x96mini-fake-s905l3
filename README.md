@@ -1,6 +1,6 @@
-# S905L3 X69 Mini Armbian Wi-Fi and LED Fix
+# S905L3 X69 Mini Armbian Wi-Fi, LED, and eMMC Fix
 
-This repository contains the files used to make Wi-Fi and the front LEDs work on an S905L3/X69 Mini style board running Ophub Armbian with kernel `6.18.37-ophub`.
+This repository contains the files used to make Wi-Fi, the front LEDs, and internal eMMC detection work on an S905L3/X69 Mini style board running Ophub Armbian with kernel `6.18.37-ophub`.
 
 The board was identified from the Android firmware `s_22-02-24-17_X69_MINI_S905W_800-M96-EMCP-REV1.ZIP`. The Wi-Fi device is Realtek RTL8189ES on SDIO:
 
@@ -16,12 +16,20 @@ sys LED: GPIODV_24, active high
 net LED: GPIOAO_9, active high
 ```
 
+The internal eMMC is wired to the `sd_emmc_c` controller at `d0074000.mmc`. Faster modes failed on this board, so the DTB uses a conservative fallback profile:
+
+```text
+bus-width = 1
+max-frequency = 400000
+legacy timing only
+```
+
 ## What Is Included
 
 - `artifacts/s905l3-x69/8189es.ko` - prebuilt RTL8189ES module for `6.18.37-ophub`.
-- `artifacts/s905l3-x69/meson-gxl-s905l3b-m302a.dtb` - DTB with `gpio-leds` nodes for this board.
+- `artifacts/s905l3-x69/meson-gxl-s905l3b-m302a.dtb` - DTB with `gpio-leds` nodes and conservative eMMC timing for this board.
 - `artifacts/s905l3-x69/install-on-board.sh` - installs the module, autoload config, module options, and DTB.
-- `artifacts/s905l3-x69/verify-on-board.sh` - checks module binding, Wi-Fi visibility, scans, and LED sysfs controls.
+- `artifacts/s905l3-x69/verify-on-board.sh` - checks module binding, Wi-Fi visibility, scans, LED sysfs controls, and eMMC detection.
 - `src/rtl8189ES_linux/` - patched RTL8189ES source based on `https://github.com/jwrdegoede/rtl8189ES_linux` commit `2d9a8af`.
 - `third_party/rtl8189ES_linux` - submodule pinned to the upstream driver commit used as the patch base.
 - `patches/rtl8189es-linux-6.18-cfg80211.patch` - the Linux 6.18 cfg80211 API patch.
@@ -92,7 +100,7 @@ It should resolve to:
 
 The patch in `patches/rtl8189es-linux-6.18-cfg80211.patch` is the difference between that upstream commit and the vendored `src/rtl8189ES_linux/` tree.
 
-## Rebuild The LED DTB
+## Rebuild The DTB
 
 From a system with `dtc` installed:
 
@@ -105,6 +113,22 @@ This writes:
 ```text
 artifacts/s905l3-x69/meson-gxl-s905l3b-m302a.dtb
 ```
+
+## eMMC Notes
+
+The original mainline-style eMMC settings reached `mmc2` but failed during tuning or card setup. The verified fallback disables high-speed, DDR, and HS200 modes and keeps the controller in 1-bit legacy timing at 400 kHz. This is slow, but it exposes the internal eMMC block device for read-only detection and normal Linux block-device setup.
+
+After installation, the eMMC should appear under the `d0074000.mmc` host, for example:
+
+```text
+/dev/mmcblk2
+/dev/mmcblk2boot0
+/dev/mmcblk2boot1
+```
+
+The main eMMC device may not contain a usable partition table. Partitioning or formatting it is a separate destructive step and is not done by the installer.
+
+Some boots logged transient read errors while Linux probed for partition metadata near the end of the device. Direct read checks of those sectors and the last sector completed successfully in the verified run.
 
 ## Verified Result
 
@@ -123,4 +147,9 @@ x69:blue:net
 x69:blue:sys
 sys_led_write=0->1
 net_led_write=1->0
+emmc_detected=yes
+emmc_block=mmcblk2
+emmc_size=7.28 GiB
+emmc_read_sector0=ok
+emmc_read_last_sector=ok
 ```
