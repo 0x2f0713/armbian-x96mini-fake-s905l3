@@ -1,0 +1,3 @@
+[submodule "third_party/rtl8189ES_linux"]
+	path = third_party/rtl8189ES_linux
+	url = https://github.com/jwrdegoede/rtl8189ES_linux.git

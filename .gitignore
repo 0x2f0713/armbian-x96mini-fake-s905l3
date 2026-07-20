@@ -1,0 +1,18 @@
+# Large source inputs and scratch output kept outside the reproduction commit.
+s_*.ZIP
+extracted/
+downloads/
+build/
+ophub-amlogic-s9xxx-armbian/
+third_party/*
+!third_party/rtl8189ES_linux/
+
+# Driver build output when rebuilding from src/rtl8189ES_linux.
+src/rtl8189ES_linux/**/*.o
+src/rtl8189ES_linux/**/*.mod
+src/rtl8189ES_linux/**/*.mod.c
+src/rtl8189ES_linux/**/*.ko
+src/rtl8189ES_linux/**/.*.cmd
+src/rtl8189ES_linux/**/.tmp_versions/
+src/rtl8189ES_linux/**/Module.symvers
+src/rtl8189ES_linux/**/modules.order
