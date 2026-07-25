@@ -35,6 +35,10 @@ fi
 install -m 0644 ./meson-gxl-s905l3b-m302a.dtb "${DTB_PATH}"
 sync
 
+if [ -f ./install-emmc-queue-limits.sh ]; then
+	sh ./install-emmc-queue-limits.sh --install
+fi
+
 if lsmod | grep -q '^8189es '; then
 	modprobe -r 8189es || true
 fi

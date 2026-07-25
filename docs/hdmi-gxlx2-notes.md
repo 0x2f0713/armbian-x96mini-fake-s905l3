@@ -403,7 +403,31 @@ read sector 264: ok
 read last sector: ok
 ```
 
-Caveat: automatic kernel/user-space partition probing still logged read I/O
-errors and `fdisk -l /dev/mmcblk2` reported only disk geometry, not a partition
-table. Treat this as verified eMMC enumeration and basic read access, not yet a
-validated high-speed or mountable eMMC configuration.
+The card was still unreliable for normal user-space tools until the block queue
+was limited:
+
+```sh
+blockdev --setro /dev/mmcblk2
+echo 4 > /sys/block/mmcblk2/queue/max_sectors_kb
+echo 2 > /sys/block/mmcblk2/queue/nomerges
+echo 0 > /sys/block/mmcblk2/queue/read_ahead_kb
+```
+
+After applying those queue limits, the previously failing sectors read cleanly,
+`fdisk -l /dev/mmcblk2` completed without I/O errors, and 1 MiB read tests from
+both the start and end of the device completed without new MMC errors.
+
+An attempted DTB-only fix using the documented Meson
+`amlogic,dram-access-quirk` property is not usable on this board. It made the
+card enumerate, but `mmcblk` failed to bind:
+
+```text
+mmc2: new MMC card at address 0001
+mmcblk mmc2:0001: probe with driver mmcblk failed with error -22
+```
+
+The board was rolled back to the DTB without that property.
+
+Caveat: `fdisk -l /dev/mmcblk2` reported only disk geometry, not a partition
+table. Treat this as verified eMMC enumeration and conservative read access,
+not yet a high-speed or mountable eMMC configuration.

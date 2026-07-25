@@ -37,8 +37,14 @@ Runtime verification showed:
 - eMMC block device: `/dev/mmcblk2`
 - eMMC size: `7818182656` bytes
 - eMMC mode in runtime DTB: 1-bit bus, `max-frequency = <400000>`
+- eMMC queue limits needed for reliable reads: `max_sectors_kb=4`,
+  `nomerges=2`, default read-only
 
-Keep eMMC checks read-only by default. The initial kernel partition probe
-logged read I/O errors and no partition table was detected, although explicit
-single-sector reads from the first, middle, and last tested sectors succeeded
-after marking `/dev/mmcblk2` read-only.
+Keep eMMC checks read-only by default. Without the queue limits, normal merged
+reads can still report `Input/output error`. After applying the queue limits,
+`fdisk -l /dev/mmcblk2` and 1 MiB read tests from the start and end of the
+device completed without new MMC I/O errors.
+
+Do not add `amlogic,dram-access-quirk` to this GXL eMMC node. That DTB-only
+test made the card enumerate but caused `mmcblk` probe to fail with `error
+-22`, so `/dev/mmcblk2` was not created.

@@ -44,6 +44,9 @@ if [ -d /sys/class/leds/x96:blue:net ]; then
 fi
 
 echo "emmc:"
+if command -v s905l3-emmc-queue-limits >/dev/null 2>&1; then
+	s905l3-emmc-queue-limits --apply || true
+fi
 emmc_block=""
 for block in /sys/block/mmcblk*; do
 	[ -e "${block}" ] || continue
@@ -60,6 +63,10 @@ for block in /sys/block/mmcblk*; do
 			size512="$(cat "${block}/size" 2>/dev/null || echo 0)"
 			echo "size512=${size512}"
 			echo "removable=$(cat "${block}/removable" 2>/dev/null || echo unknown)"
+			echo "ro=$(cat "${block}/ro" 2>/dev/null || echo unknown)"
+			echo "max_sectors_kb=$(cat "${block}/queue/max_sectors_kb" 2>/dev/null || echo unknown)"
+			echo "nomerges=$(cat "${block}/queue/nomerges" 2>/dev/null || echo unknown)"
+			echo "read_ahead_kb=$(cat "${block}/queue/read_ahead_kb" 2>/dev/null || echo unknown)"
 			for info in type name cid csd manfid oemid serial date pre_eol_info life_time; do
 				[ -e "${block}/device/${info}" ] || continue
 				printf '%s=' "${info}"
