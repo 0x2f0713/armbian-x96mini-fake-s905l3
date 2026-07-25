@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: S905L3 local bring-up <noreply@example.invalid>
+Date: Tue, 21 Jul 2026 00:00:00 +0000
+Subject: [PATCH] dt-bindings: display: meson-dw-hdmi: add GXLX2 compatible
+
+The S905L3/GXLX2 HDMI transmitter uses byte-addressed DesignWare registers
+and a directly mapped TOP window, but keeps the older GXL display pipeline
+and HDMI PHY programming.
+
+Add a dedicated compatible without a GX fallback. The GX compatible selects
+the indirect address/data register interface and cannot operate this hardware.
+
+This downstream patch is based on the public RFC:
+
+  [RFC PATCH 0/2] drm/meson: add HDMI support for GXLX2
+  https://patchew.org/linux/20260718111527.119231-1-zinan%40mieulab.com/
+
+Signed-off-by: S905L3 local bring-up <noreply@example.invalid>
+---
+ Documentation/devicetree/bindings/display/amlogic,meson-dw-hdmi.yaml | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/Documentation/devicetree/bindings/display/amlogic,meson-dw-hdmi.yaml b/Documentation/devicetree/bindings/display/amlogic,meson-dw-hdmi.yaml
+index 416fe263a..4a17eccab 100644
+--- a/Documentation/devicetree/bindings/display/amlogic,meson-dw-hdmi.yaml
++++ b/Documentation/devicetree/bindings/display/amlogic,meson-dw-hdmi.yaml
+@@ -29,8 +29,10 @@ description: |
+   The HDMI TOP block only supports HPD sensing.
+   The Synopsys HDMI Controller interrupt is routed through the
+   TOP Block interrupt.
+-  Communication to the TOP Block and the Synopsys HDMI Controller is done
+-  via a pair of dedicated addr+read/write registers.
++  Communication with the TOP Block and the Synopsys HDMI Controller uses a pair
++  of dedicated address/data registers on GXBB, GXL and GXM. GXLX2 and G12A
++  instead expose byte-addressed controller registers and a directly mapped TOP
++  window.
+   The HDMI PHY is configured by registers in the HHI register block.
+ 
+   Pixel data arrives in "4:4:4" format from the VENC block and the VPU HDMI mux
+@@ -54,6 +56,7 @@ properties:
+               - amlogic,meson-gxm-dw-hdmi # GXM (S912)
+           - const: amlogic,meson-gx-dw-hdmi
+       - enum:
++          - amlogic,meson-gxlx2-dw-hdmi # GXLX2 (S905L3)
+           - amlogic,meson-g12a-dw-hdmi # G12A (S905X2, S905Y2, S905D2)
+ 
+   reg:
+-- 
+2.43.0

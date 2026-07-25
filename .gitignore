@@ -3,6 +3,8 @@ s_*.ZIP
 extracted/
 downloads/
 build/
+artifacts/
+.cache/
 ophub-amlogic-s9xxx-armbian/
 third_party/*
 !third_party/rtl8189ES_linux/

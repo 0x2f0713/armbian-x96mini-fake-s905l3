@@ -22,25 +22,25 @@ nmcli dev status || true
 
 echo "leds:"
 ls -la /sys/class/leds || true
-for led in /sys/class/leds/x69:*; do
+for led in /sys/class/leds/x96:*; do
 	[ -e "${led}" ] || continue
 	echo "${led}"
 	cat "${led}/max_brightness" "${led}/brightness" || true
 	cat "${led}/trigger" || true
 done
 
-if [ -d /sys/class/leds/x69:blue:sys ]; then
-	echo none > /sys/class/leds/x69:blue:sys/trigger || true
-	echo 0 > /sys/class/leds/x69:blue:sys/brightness || true
+if [ -d /sys/class/leds/x96:blue:sys ]; then
+	echo none > /sys/class/leds/x96:blue:sys/trigger || true
+	echo 0 > /sys/class/leds/x96:blue:sys/brightness || true
 	sleep 1
-	echo 1 > /sys/class/leds/x69:blue:sys/brightness || true
-	echo heartbeat > /sys/class/leds/x69:blue:sys/trigger || true
+	echo 1 > /sys/class/leds/x96:blue:sys/brightness || true
+	echo heartbeat > /sys/class/leds/x96:blue:sys/trigger || true
 fi
 
-if [ -d /sys/class/leds/x69:blue:net ]; then
-	echo 1 > /sys/class/leds/x69:blue:net/brightness || true
+if [ -d /sys/class/leds/x96:blue:net ]; then
+	echo 1 > /sys/class/leds/x96:blue:net/brightness || true
 	sleep 1
-	echo 0 > /sys/class/leds/x69:blue:net/brightness || true
+	echo 0 > /sys/class/leds/x96:blue:net/brightness || true
 fi
 
 echo "emmc:"

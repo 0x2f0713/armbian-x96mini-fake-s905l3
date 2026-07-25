@@ -3,7 +3,7 @@ set -eu
 
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 DRIVER_DIR="${ROOT}/src/rtl8189ES_linux"
-OUT_DIR="${ROOT}/artifacts/s905l3-x69"
+OUT_DIR="${ROOT}/artifacts/s905l3-x96"
 KVER="${KVER:-$(uname -r)}"
 KSRC="${KSRC:-/lib/modules/${KVER}/build}"
 

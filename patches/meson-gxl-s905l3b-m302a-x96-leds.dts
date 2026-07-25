@@ -1785,14 +1785,14 @@
 		compatible = "gpio-leds";
 
 		sys-led {
-			label = "x69:blue:sys";
+			label = "x96:blue:sys";
 			gpios = <0x28 0x49 0x00>;
 			default-state = "on";
 			linux,default-trigger = "heartbeat";
 		};
 
 		net-led {
-			label = "x69:blue:net";
+			label = "x96:blue:net";
 			gpios = <0x64 0x09 0x00>;
 			default-state = "off";
 		};

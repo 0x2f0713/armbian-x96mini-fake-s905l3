@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: S905L3 local bring-up <noreply@example.invalid>
+Date: Tue, 21 Jul 2026 00:00:00 +0000
+Subject: [PATCH] arm64: dts: amlogic: m302a: use GXLX2 HDMI controller
+
+The S905L3/GXLX2 HDMI controller does not work through the GXL indirect
+address/data window at 0xc883a000. Use the direct GXLX2 register model:
+DWC registers at 0xda800000 and TOP registers at 0xda808000 inside one
+contiguous 64 KiB resource.
+
+This depends on the downstream driver patch adding
+amlogic,meson-gxlx2-dw-hdmi support.
+
+Signed-off-by: S905L3 local bring-up <noreply@example.invalid>
+---
+ arch/arm64/boot/dts/amlogic/meson-gxl-s905l3b-m302a.dts | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/amlogic/meson-gxl-s905l3b-m302a.dts b/arch/arm64/boot/dts/amlogic/meson-gxl-s905l3b-m302a.dts
+index 3c91ccab5..f4a939a34 100644
+--- a/arch/arm64/boot/dts/amlogic/meson-gxl-s905l3b-m302a.dts
++++ b/arch/arm64/boot/dts/amlogic/meson-gxl-s905l3b-m302a.dts
+@@ -34,6 +34,16 @@ &mali {
+ 	interrupt-names = "gp", "gpmmu", "pp", "pmu","pp0", "ppmmu0", "pp1", "ppmmu1";
+ };
+ 
++/*
++ * S905L3/GXLX2 uses a direct HDMI register layout:
++ * DWC at 0xda800000 and TOP at 0xda808000.
++ */
++&hdmi_tx {
++	compatible = "amlogic,meson-gxlx2-dw-hdmi";
++	reg = <0x0 0xda800000 0x0 0x10000>;
++	status = "okay";
++};
++
+ &sd_emmc_c {
+ 	status = "okay";
+ 	bus-width = <8>;
+-- 
+2.43.0
