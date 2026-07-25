@@ -336,5 +336,74 @@ r8723bs.ko vermagic: 6.18.38-x96gxlx2-gnu15 SMP preempt mod_unload aarch64
 
 Non-HDMI follow-up from the same SSH check: this HDMI test DTB/kernel boot has
 no active LED class entries and no Wi-Fi interface from `iw dev`. The earlier
-Wi-Fi/LED/eMMC device-tree work still needs to be merged into the HDMI test
-state before this becomes the full board support image.
+Wi-Fi/LED device-tree work still needs to be merged into the HDMI test state
+before this becomes the full board support image.
+
+## Conservative eMMC Result
+
+The first HDMI-good DTB still inherited the parent M302A eMMC timing:
+
+```dts
+bus-width = <8>;
+cap-mmc-highspeed;
+mmc-ddr-1_8v;
+mmc-hs200-1_8v;
+max-frequency = <200000000>;
+```
+
+On this board that failed before creating the eMMC block device:
+
+```text
+mmc2: tuning execution failed: -5
+mmc2: error -5 whilst initialising MMC card
+mmc2: Failed to initialize a non-removable card
+```
+
+The local `0003` patch deliberately drops those inherited high-speed modes and
+uses legacy 1-bit timing capped at 400 kHz:
+
+```dts
+&sd_emmc_c {
+	status = "okay";
+	/delete-property/ cap-mmc-highspeed;
+	/delete-property/ mmc-ddr-1_8v;
+	/delete-property/ mmc-hs200-1_8v;
+	bus-width = <1>;
+	max-frequency = <400000>;
+};
+```
+
+The verified runtime DTB has:
+
+```dts
+mmc@74000 {
+	status = "okay";
+	bus-width = <0x01>;
+	max-frequency = <0x61a80>;
+	non-removable;
+	disable-wp;
+};
+```
+
+With that DTB, the board booted the same `6.18.38-x96gxlx2-gnu15` HDMI kernel,
+kept rootfs on microSD, and enumerated the internal eMMC:
+
+```text
+/dev/mmcblk1p2: rootfs on microSD
+/dev/mmcblk1p1: boot partition on microSD
+/dev/mmcblk2: internal eMMC on d0074000.mmc
+mmcblk2 size: 7818182656 bytes
+```
+
+Read-only spot checks succeeded after marking the eMMC block device read-only:
+
+```text
+read sector 0: ok
+read sector 264: ok
+read last sector: ok
+```
+
+Caveat: automatic kernel/user-space partition probing still logged read I/O
+errors and `fdisk -l /dev/mmcblk2` reported only disk geometry, not a partition
+table. Treat this as verified eMMC enumeration and basic read access, not yet a
+validated high-speed or mountable eMMC configuration.

@@ -28,11 +28,7 @@ CCACHE_WRAPPER_DIR="${CCACHE_WRAPPER_DIR:-${ROOT}/.cache/ccache-wrappers}"
 KBUILD_BUILD_USER="${KBUILD_BUILD_USER:-s905l3}"
 KBUILD_BUILD_HOST="${KBUILD_BUILD_HOST:-builder}"
 
-patches=(
-	"${ROOT}/patches/hdmi/0000-dt-bindings-display-meson-dw-hdmi-add-gxlx2-compatible.patch"
-	"${ROOT}/patches/hdmi/0001-drm-meson-add-gxlx2-hdmi-support.patch"
-	"${ROOT}/patches/hdmi/0002-arm64-dts-amlogic-m302a-use-gxlx2-hdmi.patch"
-)
+patches=("${ROOT}"/patches/hdmi/*.patch)
 
 touched=(
 	Documentation/devicetree/bindings/display/amlogic,meson-dw-hdmi.yaml
