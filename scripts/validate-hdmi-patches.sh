@@ -47,9 +47,11 @@ make -C "${TMP}" ARCH="${ARCH}" CROSS_COMPILE="${CROSS_COMPILE}" olddefconfig
 make -C "${TMP}" ARCH="${ARCH}" CROSS_COMPILE="${CROSS_COMPILE}" -j"$(nproc)" \
 	drivers/gpu/drm/meson/meson_dw_hdmi.o \
 	drivers/gpu/drm/meson/meson_drv.o \
+	drivers/mmc/host/meson-gx-mmc.o \
 	amlogic/meson-gxl-s905l3b-m302a.dtb
 
 ls -lh \
 	"${TMP}/drivers/gpu/drm/meson/meson_dw_hdmi.o" \
 	"${TMP}/drivers/gpu/drm/meson/meson_drv.o" \
+	"${TMP}/drivers/mmc/host/meson-gx-mmc.o" \
 	"${TMP}/arch/arm64/boot/dts/amlogic/meson-gxl-s905l3b-m302a.dtb"

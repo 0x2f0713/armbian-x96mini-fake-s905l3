@@ -359,8 +359,9 @@ mmc2: error -5 whilst initialising MMC card
 mmc2: Failed to initialize a non-removable card
 ```
 
-The local `0003` patch deliberately drops those inherited high-speed modes and
-uses legacy 1-bit timing capped at 400 kHz:
+The local eMMC patch set deliberately drops those inherited high-speed modes,
+uses legacy 1-bit timing capped at 400 kHz, and clamps Meson MMC requests
+before `mmc_add_host()`:
 
 ```dts
 &sd_emmc_c {
@@ -369,6 +370,7 @@ uses legacy 1-bit timing capped at 400 kHz:
 	/delete-property/ mmc-ddr-1_8v;
 	/delete-property/ mmc-hs200-1_8v;
 	bus-width = <1>;
+	amlogic,max-request-blocks = <8>;
 	max-frequency = <400000>;
 };
 ```
@@ -379,6 +381,7 @@ The verified runtime DTB has:
 mmc@74000 {
 	status = "okay";
 	bus-width = <0x01>;
+	amlogic,max-request-blocks = <0x08>;
 	max-frequency = <0x61a80>;
 	non-removable;
 	disable-wp;
@@ -403,8 +406,8 @@ read sector 264: ok
 read last sector: ok
 ```
 
-The card was still unreliable for normal user-space tools until the block queue
-was limited:
+The earlier DTB-only conservative timing boot was still unreliable for normal
+user-space tools until the block queue was limited:
 
 ```sh
 blockdev --setro /dev/mmcblk2
@@ -416,6 +419,38 @@ echo 0 > /sys/block/mmcblk2/queue/read_ahead_kb
 After applying those queue limits, the previously failing sectors read cleanly,
 `fdisk -l /dev/mmcblk2` completed without I/O errors, and 1 MiB read tests from
 both the start and end of the device completed without new MMC errors.
+
+That was not sufficient for a clean boot because early `mmcblk` and userspace
+probes could still issue larger reads before the service applied queue limits.
+The verified fix adds `patches/hdmi/0003-mmc-meson-gx-allow-limiting-request-blocks.patch`
+and sets `amlogic,max-request-blocks = <8>` in the M302A DTB patch. The local
+tested artifact was:
+
+```text
+artifacts/emmc-maxreq/6.18.38-x96gxlx2-gnu15-20260725T221253Z
+zImage sha256: e10ae7273b48197c1b40599b7c6f4fdbe5752a3df290866a201a91ea2647c7b7
+dtb sha256: 8d278f3414559b31065686ae8851d85edc191220a12e11b93f9a1392e6542034
+```
+
+After installing that `zImage` and DTB, the board booted as:
+
+```text
+Linux version 6.18.38-x96gxlx2-gnu15 ... #8 SMP PREEMPT_DYNAMIC Sun Jul 26 05:05:30 +07 2026
+```
+
+Runtime eMMC verification showed:
+
+```text
+/sys/block/mmcblk2/queue/max_hw_sectors_kb: 4
+/sys/block/mmcblk2/queue/max_sectors_kb: 4
+/sys/block/mmcblk2/queue/read_ahead_kb: 0
+/sys/block/mmcblk2/queue/nomerges: 2
+```
+
+Fresh dmesg contained the normal `mmc2` registration lines and no eMMC I/O
+errors. `fdisk -l /dev/mmcblk2`, 4 KiB direct reads from the beginning and end
+of the device, and a 1 MiB direct read completed without adding new kernel log
+lines.
 
 An attempted DTB-only fix using the documented Meson
 `amlogic,dram-access-quirk` property is not usable on this board. It made the

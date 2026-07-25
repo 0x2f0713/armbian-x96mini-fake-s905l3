@@ -1,0 +1,71 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: S905L3 local bring-up <noreply@example.invalid>
+Date: Sun, 26 Jul 2026 00:00:00 +0000
+Subject: [PATCH] mmc: meson-gx: allow limiting request blocks
+
+Some board/card combinations enumerate correctly but fail larger descriptor
+transfers during early block probing. Add a Meson-specific DT knob that clamps
+the host request size before mmc_add_host(), so the block queue is constrained
+before mmcblk probes for partition metadata.
+
+This is intended as a board quirk, not a replacement for normal timing
+configuration.
+
+Signed-off-by: S905L3 local bring-up <noreply@example.invalid>
+---
+ .../bindings/mmc/amlogic,meson-gx-mmc.yaml   | 10 ++++++++++
+ drivers/mmc/host/meson-gx-mmc.c              | 10 +++++++++-
+ 2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/Documentation/devicetree/bindings/mmc/amlogic,meson-gx-mmc.yaml b/Documentation/devicetree/bindings/mmc/amlogic,meson-gx-mmc.yaml
+index 12196184b..9fc1b8c33 100644
+--- a/Documentation/devicetree/bindings/mmc/amlogic,meson-gx-mmc.yaml
++++ b/Documentation/devicetree/bindings/mmc/amlogic,meson-gx-mmc.yaml
+@@ -50,6 +50,16 @@ properties:
+       set when controller's internal DMA engine cannot access the DRAM memory,
+       like on the G12A dedicated SDIO controller.
+ 
++  amlogic,max-request-blocks:
++    $ref: /schemas/types.yaml#/definitions/uint32
++    minimum: 1
++    maximum: 511
++    description:
++      Maximum number of blocks in one request. This is a board-specific
++      fallback for card/controller combinations that enumerate correctly but
++      fail larger descriptor transfers during early block probing. The Meson
++      GX command length field supports up to 511 blocks.
++
+   power-domains:
+     maxItems: 1
+ 
+diff --git a/drivers/mmc/host/meson-gx-mmc.c b/drivers/mmc/host/meson-gx-mmc.c
+index 3376759f6..6e83a0ecf 100644
+--- a/drivers/mmc/host/meson-gx-mmc.c
++++ b/drivers/mmc/host/meson-gx-mmc.c
+@@ -1147,7 +1147,8 @@ static int meson_mmc_probe(struct platform_device *pdev)
+ 	struct meson_host *host;
+ 	struct mmc_host *mmc;
+ 	struct clk *core_clk;
+-	int cd_irq, ret;
++	u32 max_request_blocks;
++	int cd_irq, ret;
+ 
+ 	mmc = devm_mmc_alloc_host(&pdev->dev, sizeof(struct meson_host));
+ 	if (!mmc)
+@@ -1239,6 +1240,14 @@ static int meson_mmc_probe(struct platform_device *pdev)
+ 		mmc->max_segs = SD_EMMC_DESC_BUF_LEN /
+ 				sizeof(struct sd_emmc_desc);
+ 	}
++	if (!device_property_read_u32(&pdev->dev, "amlogic,max-request-blocks",
++				      &max_request_blocks)) {
++		if (!max_request_blocks)
++			return dev_err_probe(&pdev->dev, -EINVAL,
++					     "invalid amlogic,max-request-blocks\n");
++		mmc->max_blk_count = min_t(unsigned int, mmc->max_blk_count,
++					   max_request_blocks);
++	}
+ 	mmc->max_req_size = mmc->max_blk_count * mmc->max_blk_size;
+ 	mmc->max_seg_size = mmc->max_req_size;
+ 
+-- 
+2.43.0

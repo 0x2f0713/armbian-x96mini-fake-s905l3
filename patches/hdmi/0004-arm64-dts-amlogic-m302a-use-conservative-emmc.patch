@@ -9,20 +9,21 @@ and HS200 modes at up to 200 MHz, but this board fails tuning and never
 creates the eMMC block device with that configuration.
 
 Use the known-good fallback profile previously verified on this board: 1-bit
-legacy timing capped at 400 kHz. This is slow, but it lets Linux enumerate the
-internal eMMC for read-only inspection while keeping the microSD rootfs on
-sd_emmc_b.
+legacy timing capped at 400 kHz, with requests limited to 8 blocks so early
+mmcblk probing cannot issue larger transfers that fail on this board. This is
+slow, but it lets Linux enumerate the internal eMMC for read-only inspection
+while keeping the microSD rootfs on sd_emmc_b.
 
 Signed-off-by: S905L3 local bring-up <noreply@example.invalid>
 ---
- arch/arm64/boot/dts/amlogic/meson-gxl-s905l3b-m302a.dts | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ arch/arm64/boot/dts/amlogic/meson-gxl-s905l3b-m302a.dts | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
 
 diff --git a/arch/arm64/boot/dts/amlogic/meson-gxl-s905l3b-m302a.dts b/arch/arm64/boot/dts/amlogic/meson-gxl-s905l3b-m302a.dts
 index f4a939a34..70e020338 100644
 --- a/arch/arm64/boot/dts/amlogic/meson-gxl-s905l3b-m302a.dts
 +++ b/arch/arm64/boot/dts/amlogic/meson-gxl-s905l3b-m302a.dts
-@@ -47,11 +47,11 @@ &hdmi_tx {
+@@ -47,11 +47,12 @@ &hdmi_tx {
  
  &sd_emmc_c {
  	status = "okay";
@@ -35,6 +36,7 @@ index f4a939a34..70e020338 100644
 +	/delete-property/ mmc-ddr-1_8v;
 +	/delete-property/ mmc-hs200-1_8v;
 +	bus-width = <1>;
++	amlogic,max-request-blocks = <8>;
 +	max-frequency = <400000>;
  };
  

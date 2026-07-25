@@ -1,6 +1,10 @@
 # S905L3 X96 Mini Armbian Wi-Fi, LED, and eMMC Fix
 
-This repository contains the files used to make Wi-Fi, the front LEDs, and internal eMMC detection work on an S905L3/X96 Mini style board running Ophub Armbian with kernel `6.18.37-ophub`.
+This repository contains the files used to make Wi-Fi, the front LEDs, HDMI,
+and internal eMMC detection work on an S905L3/X96 Mini style board running
+Ophub Armbian. The original Wi-Fi/LED artifact targets kernel
+`6.18.37-ophub`; the newer HDMI/eMMC patch set targets
+`6.18.38-x96gxlx2-gnu15`.
 
 The board was identified from the Android firmware `s_22-02-24-17_X69_MINI_S905W_800-M96-EMCP-REV1.ZIP`. The Wi-Fi device is Realtek RTL8189ES on SDIO:
 
@@ -119,7 +123,25 @@ artifacts/s905l3-x96/meson-gxl-s905l3b-m302a.dtb
 
 The original mainline-style eMMC settings reached `mmc2` but failed during tuning or card setup. The verified fallback disables high-speed, DDR, and HS200 modes and keeps the controller in 1-bit legacy timing at 400 kHz. This is slow, but it exposes the internal eMMC block device.
 
-The eMMC also needs small block queue requests on this board. Without this, normal user-space probes may merge reads and report `Input/output error` even though small direct sector reads work. The installer applies:
+The eMMC also needs small requests on this board. Without this, early block
+probing and normal user-space probes may merge reads and report
+`Input/output error` even though small direct sector reads work.
+
+For the `6.18.38-x96gxlx2-gnu15` HDMI/eMMC image, the verified fix is a
+kernel-side Meson MMC host clamp plus a DTB property:
+
+```text
+amlogic,max-request-blocks = <8>
+```
+
+That makes the registered block queue expose:
+
+```text
+max_hw_sectors_kb = 4
+```
+
+from the moment `/dev/mmcblk2` is created, before `mmcblk` and userspace can
+issue larger reads. The runtime safety service still applies:
 
 ```text
 max_sectors_kb = 4
@@ -138,7 +160,13 @@ After installation, the eMMC should appear under the `d0074000.mmc` host, for ex
 
 The main eMMC device may not contain a usable partition table. Partitioning or formatting it is a separate destructive step and is not done by the installer.
 
-Some boots logged read errors before the queue limits were applied. After applying the queue limits, `fdisk -l /dev/mmcblk2`, 1 MiB reads from the beginning of the device, and 1 MiB reads from the end of the device completed without new MMC I/O errors in the verified run.
+The older `6.18.37-ophub` Wi-Fi/LED artifact does not include the kernel-side
+MMC host clamp, so it relies on the queue-limit service after userspace starts.
+
+The latest verified `6.18.38-x96gxlx2-gnu15` boot had no eMMC I/O errors in
+fresh dmesg, reported `max_hw_sectors_kb=4`, and passed `fdisk -l
+/dev/mmcblk2`, 4 KiB direct reads from the beginning and end of the device,
+and a 1 MiB direct read without adding new kernel log lines.
 
 ## Verified Result
 

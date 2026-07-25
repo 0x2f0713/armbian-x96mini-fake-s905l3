@@ -32,8 +32,10 @@ patches=("${ROOT}"/patches/hdmi/*.patch)
 
 touched=(
 	Documentation/devicetree/bindings/display/amlogic,meson-dw-hdmi.yaml
+	Documentation/devicetree/bindings/mmc/amlogic,meson-gx-mmc.yaml
 	drivers/gpu/drm/meson/meson_drv.c
 	drivers/gpu/drm/meson/meson_dw_hdmi.c
+	drivers/mmc/host/meson-gx-mmc.c
 	arch/arm64/boot/dts/amlogic/meson-gxl-s905l3b-m302a.dts
 )
 
@@ -222,7 +224,7 @@ cp "${ROOT}/scripts/install-hdmi-test-os-disk.sh" "${out}/install-hdmi-test-os-d
 	if [ "${DISABLE_MESON_DRM}" = "true" ]; then
 		printf '# S905L3 No-Meson-DRM Diagnostic Bundle\n\n'
 	else
-		printf '# S905L3 GXLX2 HDMI Test Bundle\n\n'
+		printf '# S905L3 GXLX2 HDMI/eMMC Test Bundle\n\n'
 	fi
 	printf 'Kernel release: %s\n\n' "${kernel_release}"
 	if [ "${DISABLE_BTF}" = "true" ]; then
@@ -236,8 +238,8 @@ cp "${ROOT}/scripts/install-hdmi-test-os-disk.sh" "${out}/install-hdmi-test-os-d
 		printf -- '- zImage: arm64 Image built with Meson DRM disabled.\n'
 		printf -- '- %s: M302A DTB using the same GXLX2 HDMI description; it is inert while CONFIG_DRM_MESON is disabled.\n' "${DTB_NAME}"
 	else
-		printf -- '- zImage: arm64 Image built with the experimental GXLX2 HDMI patch set.\n'
-		printf -- '- %s: M302A DTB using amlogic,meson-gxlx2-dw-hdmi at 0xda800000.\n' "${DTB_NAME}"
+		printf -- '- zImage: arm64 Image built with the experimental GXLX2 HDMI patch set and Meson eMMC request clamp.\n'
+		printf -- '- %s: M302A DTB using amlogic,meson-gxlx2-dw-hdmi at 0xda800000 and conservative eMMC settings.\n' "${DTB_NAME}"
 	fi
 	printf -- '- config-%s: kernel config used for this build.\n' "${kernel_release}"
 	printf -- '- System.map-%s: symbol map for diagnostics.\n' "${kernel_release}"
@@ -261,6 +263,7 @@ cp "${ROOT}/scripts/install-hdmi-test-os-disk.sh" "${out}/install-hdmi-test-os-d
 	else
 		printf '    sudo ./install-hdmi-test-boot.sh --kernel ./zImage --dtb ./%s --rollback-delay 300\n\n' "${DTB_NAME}"
 	fi
+	printf 'Expected eMMC queue after boot: /sys/block/mmcblk2/queue/max_hw_sectors_kb = 4.\n\n'
 	printf 'Keep the kernel image, DTB, modules, and regenerated uInitrd on the same kernel release. A stale initrd/module tree can reset the board at the /init handoff even after HDMI has bound successfully.\n'
 } >"${out}/README.md"
 
