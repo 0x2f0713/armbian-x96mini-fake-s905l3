@@ -165,6 +165,16 @@ if [ "${DISABLE_MESON_DRM}" = "true" ]; then
 		--disable DRM_MESON \
 		--disable DRM_MESON_DW_HDMI \
 		--disable DRM_MESON_DW_MIPI_DSI
+else
+	"${KERNEL_TREE}/scripts/config" --file "${KERNEL_TREE}/.config" \
+		--enable DRM \
+		--enable DRM_MESON \
+		--enable DRM_MESON_DW_HDMI \
+		--enable DRM_DW_HDMI \
+		--enable DRM_DW_HDMI_CEC \
+		--enable OF \
+		--enable COMMON_CLK \
+		--enable REGMAP_MMIO
 fi
 
 "${KERNEL_TREE}/scripts/config" --file "${KERNEL_TREE}/.config" \

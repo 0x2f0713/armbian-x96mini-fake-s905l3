@@ -26,12 +26,12 @@ HDMI confirmation as authoritative.
 
 ## eMMC Verified State
 
-The verified eMMC state is the HDMI-good `6.18.38-x96gxlx2-gnu15` kernel with
-the Meson MMC host request clamp and matching DTB property. Runtime
-verification showed:
+The verified combined HDMI/eMMC state is `6.18.38-x96gxlx2-gnu15` kernel
+build `#9` with Meson DRM enabled, the Meson MMC host request clamp, and the
+matching DTB property. Runtime verification showed:
 
 - Kernel release: `6.18.38-x96gxlx2-gnu15`
-- Kernel build line: `#8 SMP PREEMPT_DYNAMIC Sun Jul 26 05:05:30 +07 2026`
+- Kernel build line: `#9 SMP PREEMPT_DYNAMIC Sun Jul 26 08:47:48 +07 2026`
 - Rootfs: `/dev/mmcblk1p2`
 - Boot partition: `/dev/mmcblk1p1`
 - eMMC host: `d0074000.mmc`
@@ -42,6 +42,8 @@ verification showed:
 - Kernel hardware queue clamp: `max_hw_sectors_kb=4`
 - Runtime safety queue settings: `max_sectors_kb=4`, `nomerges=2`,
   `read_ahead_kb=0`, default read-only
+- HDMI: `/sys/class/drm/card0-HDMI-A-1/status=connected`,
+  `enabled=enabled`, framebuffer `mesondrmfb`
 
 Keep eMMC checks read-only by default. Without the kernel-side request clamp,
 early `mmcblk` and userspace reads can report `Input/output error` before the
@@ -61,6 +63,12 @@ bundle. The script defaults to `JOBS=2*nproc`, uses the local Arm GNU
 toolchain when present, and enables `ccache` automatically through
 `.cache/ccache` and `.cache/ccache-wrappers`. Keep that cache directory
 between builds.
+
+Normal builds must keep Meson DRM enabled. A previous boot-only eMMC artifact
+(`#8`) was built after a no-DRM diagnostic left `CONFIG_DRM_MESON` disabled in
+the reused kernel `.config`; Linux and eMMC worked, but HDMI never bound and
+the screen stayed on the bootloader image. The build script now explicitly
+enables the Meson DRM/HDMI symbols unless `DISABLE_MESON_DRM=true` is set.
 
 When changing only built-in code or DTB while keeping the same
 `LOCALVERSION`, `BUILD_MODULES=false` is acceptable for a fast boot-file-only

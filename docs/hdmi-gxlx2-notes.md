@@ -452,6 +452,37 @@ errors. `fdisk -l /dev/mmcblk2`, 4 KiB direct reads from the beginning and end
 of the device, and a 1 MiB direct read completed without adding new kernel log
 lines.
 
+That `#8` boot was eMMC-clean but not HDMI-good: the local kernel `.config`
+still had `CONFIG_DRM_MESON` disabled from the earlier no-DRM diagnostic, so
+Linux reached userspace but HDMI never bound and the display stayed on the
+bootloader image. The build script now explicitly enables Meson DRM/HDMI for
+normal artifacts.
+
+The corrected local tested artifact was:
+
+```text
+artifacts/hdmi-emmc-fixed/6.18.38-x96gxlx2-gnu15-20260726T015252Z
+zImage sha256: 261ff290ba7539efa32075e05ff977dc4890bf39d0abeeba1de92951eb55d692
+dtb sha256: 8d278f3414559b31065686ae8851d85edc191220a12e11b93f9a1392e6542034
+```
+
+After installing that `zImage` and the same DTB, the board booted as:
+
+```text
+Linux version 6.18.38-x96gxlx2-gnu15 ... #9 SMP PREEMPT_DYNAMIC Sun Jul 26 08:47:48 +07 2026
+```
+
+Runtime verification showed:
+
+```text
+CONFIG_DRM_MESON=y
+CONFIG_DRM_MESON_DW_HDMI=y
+/sys/class/drm/card0-HDMI-A-1/status: connected
+/sys/class/drm/card0-HDMI-A-1/enabled: enabled
+/sys/class/graphics/fb0/name: mesondrmfb
+/sys/block/mmcblk2/queue/max_hw_sectors_kb: 4
+```
+
 An attempted DTB-only fix using the documented Meson
 `amlogic,dram-access-quirk` property is not usable on this board. It made the
 card enumerate, but `mmcblk` failed to bind:
