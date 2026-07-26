@@ -20,11 +20,13 @@ sys LED: GPIODV_24, active high
 net LED: GPIOAO_9, active high
 ```
 
-The internal eMMC is wired to the `sd_emmc_c` controller at `d0074000.mmc`. Faster modes failed on this board, so the DTB uses a conservative fallback profile:
+The internal eMMC is wired to the `sd_emmc_c` controller at `d0074000.mmc`.
+Wide-bus and high-speed modes failed on this board, so the HDMI/eMMC kernel
+DTB uses a conservative legacy fallback profile:
 
 ```text
 bus-width = 1
-max-frequency = 400000
+max-frequency = 20000000
 legacy timing only
 ```
 
@@ -42,6 +44,8 @@ legacy timing only
 - `patches/hdmi/` - HDMI/eMMC kernel patch stack for `6.18.38-x96gxlx2-gnu15`, including the X96 LED DTB patch.
 - `scripts/build-hdmi-test-artifact.sh` - builds the HDMI/eMMC DTB/kernel bundle and the matching RTL8189ES module.
 - `scripts/install-8189es-module.sh` - installs only the RTL8189ES module for the running kernel and leaves the DTB untouched.
+- `scripts/build-emmc-speed-test-dtbs.sh` - builds DTB-only eMMC frequency sweep artifacts from the HDMI patch stack.
+- `scripts/benchmark-emmc-read.sh` - captures eMMC mode, queue settings, direct-read speed, and recent MMC logs on the board.
 
 ## Install On A Fresh Armbian Instance
 
@@ -152,7 +156,13 @@ artifacts/s905l3-x96/meson-gxl-s905l3b-m302a.dtb
 
 ## eMMC Notes
 
-The original mainline-style eMMC settings reached `mmc2` but failed during tuning or card setup. The verified fallback disables high-speed, DDR, and HS200 modes and keeps the controller in 1-bit legacy timing at 400 kHz. This is slow, but it exposes the internal eMMC block device.
+The original mainline-style eMMC settings reached `mmc2` but failed during
+tuning or card setup. The verified fallback disables high-speed, DDR, and HS200
+modes and keeps the controller in 1-bit legacy timing. The first safe fallback
+used 400 kHz and read at about 49 kB/s. A later frequency sweep verified 20 MHz
+legacy timing at about 2.2 MB/s. A 25 MHz DTB booted Linux from microSD but the
+internal eMMC failed to initialize with `mmc2: error -84`, so 20 MHz is the
+current safe cap.
 
 The eMMC also needs small requests on this board. Without this, early block
 probing and normal user-space probes may merge reads and report

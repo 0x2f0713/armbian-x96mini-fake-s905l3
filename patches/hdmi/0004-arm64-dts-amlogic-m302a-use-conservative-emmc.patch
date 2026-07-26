@@ -9,10 +9,10 @@ and HS200 modes at up to 200 MHz, but this board fails tuning and never
 creates the eMMC block device with that configuration.
 
 Use the known-good fallback profile previously verified on this board: 1-bit
-legacy timing capped at 400 kHz, with requests limited to 8 blocks so early
-mmcblk probing cannot issue larger transfers that fail on this board. This is
-slow, but it lets Linux enumerate the internal eMMC for read-only inspection
-while keeping the microSD rootfs on sd_emmc_b.
+legacy timing capped at 20 MHz, with requests limited to 8 blocks so early
+mmcblk probing cannot issue larger transfers that fail on this board. This
+keeps Linux enumerating the internal eMMC for read-only inspection while
+keeping the microSD rootfs on sd_emmc_b.
 
 Signed-off-by: S905L3 local bring-up <noreply@example.invalid>
 ---
@@ -37,7 +37,7 @@ index f4a939a34..70e020338 100644
 +	/delete-property/ mmc-hs200-1_8v;
 +	bus-width = <1>;
 +	amlogic,max-request-blocks = <8>;
-+	max-frequency = <400000>;
++	max-frequency = <20000000>;
  };
  
  &internal_phy {

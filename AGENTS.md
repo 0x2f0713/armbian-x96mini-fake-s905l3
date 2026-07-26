@@ -37,11 +37,13 @@ matching DTB property. Runtime verification showed:
 - eMMC host: `d0074000.mmc`
 - eMMC block device: `/dev/mmcblk2`
 - eMMC size: `7818182656` bytes
-- eMMC mode in runtime DTB: 1-bit bus, `max-frequency = <400000>`,
+- eMMC mode in runtime DTB: 1-bit bus, `max-frequency = <20000000>`,
   `amlogic,max-request-blocks = <8>`
+- eMMC clock: `20000000 Hz`, legacy timing
 - Kernel hardware queue clamp: `max_hw_sectors_kb=4`
 - Runtime safety queue settings: `max_sectors_kb=4`, `nomerges=2`,
   `read_ahead_kb=0`, default read-only
+- eMMC read benchmark: 1 MiB direct read at about `2.2 MB/s`
 - HDMI: `/sys/class/drm/card0-HDMI-A-1/status=connected`,
   `enabled=enabled`, framebuffer `mesondrmfb`
 
@@ -51,6 +53,11 @@ systemd queue-limit service has a chance to run. With the clamp active,
 fresh-boot dmesg had no eMMC I/O errors, `fdisk -l /dev/mmcblk2` succeeded,
 4 KiB direct reads from the start and end of the device succeeded, and a 1 MiB
 direct read completed without adding new kernel log lines.
+
+The original 400 kHz fallback read at about `49 kB/s`; 20 MHz legacy timing is
+the verified fast profile. A 25 MHz DTB reached Linux from microSD but failed
+to initialize internal eMMC with `mmc2: error -84`, leaving no `/dev/mmcblk2`.
+Do not use 25 MHz as the default.
 
 Do not add `amlogic,dram-access-quirk` to this GXL eMMC node. That DTB-only
 test made the card enumerate but caused `mmcblk` probe to fail with `error
@@ -107,3 +114,7 @@ The FAT `/boot` partition is small. Before guarded installs, check free space;
 old test backups can be moved to the root filesystem. During the verified eMMC
 test, previous `/boot/*backup*` directories were moved under `/root`, then the
 guarded installer created `/boot/hdmi-test-backups/20260725T221523Z`.
+
+For eMMC speed tests, use `scripts/build-emmc-speed-test-dtbs.sh` to generate
+DTB-only frequency-sweep artifacts and `scripts/benchmark-emmc-read.sh` on the
+board. Test in ascending frequency order with the guarded rollback installer.
