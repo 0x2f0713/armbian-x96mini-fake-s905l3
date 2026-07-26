@@ -20,8 +20,11 @@ DTB_NAME="${DTB_NAME:-meson-gxl-s905l3b-m302a.dtb}"
 DISABLE_BTF="${DISABLE_BTF:-true}"
 DISABLE_MESON_DRM="${DISABLE_MESON_DRM:-false}"
 BUILD_MODULES="${BUILD_MODULES:-true}"
+BUILD_WIFI="${BUILD_WIFI:-true}"
+WIFI_DRIVER_DIR="${WIFI_DRIVER_DIR:-${ROOT}/src/rtl8189ES_linux}"
 HOST_CPUS="${HOST_CPUS:-$(nproc)}"
 JOBS="${JOBS:-$((HOST_CPUS * 2))}"
+WIFI_JOBS="${WIFI_JOBS:-${JOBS}}"
 USE_CCACHE="${USE_CCACHE:-auto}"
 CCACHE_DIR="${CCACHE_DIR:-${ROOT}/.cache/ccache}"
 CCACHE_WRAPPER_DIR="${CCACHE_WRAPPER_DIR:-${ROOT}/.cache/ccache-wrappers}"
@@ -40,6 +43,7 @@ touched=(
 )
 
 tmp_paths=()
+wifi_build_started=false
 
 die() {
 	printf 'error: %s\n' "$*" >&2
@@ -48,6 +52,15 @@ die() {
 
 cleanup() {
 	local path
+
+	if [ "${wifi_build_started}" = "true" ] && [ -n "${kernel_release:-}" ]; then
+		make -C "${WIFI_DRIVER_DIR}" \
+			ARCH="${ARCH}" \
+			CROSS_COMPILE="${effective_cross_compile:-${CROSS_COMPILE}}" \
+			KSRC="${KERNEL_TREE}" \
+			KVER="${kernel_release}" \
+			clean >/dev/null 2>&1 || true
+	fi
 
 	git -C "${KERNEL_TREE}" restore -- "${touched[@]}" >/dev/null 2>&1 || true
 	for path in "${tmp_paths[@]}"; do
@@ -91,6 +104,16 @@ ccache_cross_assembler_works() {
 
 [ -d "${KERNEL_TREE}/.git" ] || die "kernel tree is not a Git checkout: ${KERNEL_TREE}"
 [ -x "${KERNEL_TREE}/scripts/config" ] || die "kernel scripts/config is missing; run a kernel prepare/config step first"
+
+case "${BUILD_MODULES}" in
+	true|false) ;;
+	*) die "BUILD_MODULES must be true or false" ;;
+esac
+
+case "${BUILD_WIFI}" in
+	true|false) ;;
+	*) die "BUILD_WIFI must be true or false" ;;
+esac
 
 check_touched_clean
 
@@ -219,8 +242,33 @@ if [ "${BUILD_MODULES}" = "true" ]; then
 	modules_tar_name="modules-${kernel_release}.tar.gz"
 	tar -C "${module_stage}" -czf "${out}/${modules_tar_name}" \
 		"lib/modules/${kernel_release}"
-elif [ "${BUILD_MODULES}" != "false" ]; then
-	die "BUILD_MODULES must be true or false"
+fi
+
+wifi_module_name=
+if [ "${BUILD_WIFI}" = "true" ]; then
+	[ -f "${WIFI_DRIVER_DIR}/Makefile" ] || die "RTL8189ES driver Makefile not found: ${WIFI_DRIVER_DIR}/Makefile"
+	command -v modinfo >/dev/null 2>&1 || die "modinfo is required to validate the RTL8189ES module"
+
+	wifi_build_started=true
+	make -C "${WIFI_DRIVER_DIR}" \
+		ARCH="${ARCH}" \
+		CROSS_COMPILE="${effective_cross_compile}" \
+		KSRC="${KERNEL_TREE}" \
+		KVER="${kernel_release}" \
+		clean
+	make -C "${WIFI_DRIVER_DIR}" \
+		ARCH="${ARCH}" \
+		CROSS_COMPILE="${effective_cross_compile}" \
+		KSRC="${KERNEL_TREE}" \
+		KVER="${kernel_release}" \
+		-j"${WIFI_JOBS}"
+
+	[ -f "${WIFI_DRIVER_DIR}/8189es.ko" ] || die "RTL8189ES build did not produce 8189es.ko"
+	wifi_vermagic="$(modinfo -F vermagic "${WIFI_DRIVER_DIR}/8189es.ko" | awk '{print $1}')"
+	[ "${wifi_vermagic}" = "${kernel_release}" ] || die "8189es.ko vermagic ${wifi_vermagic} does not match ${kernel_release}"
+
+	wifi_module_name=8189es.ko
+	cp "${WIFI_DRIVER_DIR}/8189es.ko" "${out}/${wifi_module_name}"
 fi
 
 cp "${KERNEL_TREE}/arch/${ARCH}/boot/Image" "${out}/zImage"
@@ -229,6 +277,9 @@ cp "${KERNEL_TREE}/.config" "${out}/config-${kernel_release}"
 cp "${KERNEL_TREE}/System.map" "${out}/System.map-${kernel_release}"
 cp "${ROOT}/scripts/install-hdmi-test-boot.sh" "${out}/install-hdmi-test-boot.sh"
 cp "${ROOT}/scripts/install-hdmi-test-os-disk.sh" "${out}/install-hdmi-test-os-disk.sh"
+if [ -n "${wifi_module_name}" ]; then
+	cp "${ROOT}/scripts/install-8189es-module.sh" "${out}/install-8189es-module.sh"
+fi
 
 {
 	if [ "${DISABLE_MESON_DRM}" = "true" ]; then
@@ -249,7 +300,7 @@ cp "${ROOT}/scripts/install-hdmi-test-os-disk.sh" "${out}/install-hdmi-test-os-d
 		printf -- '- %s: M302A DTB using the same GXLX2 HDMI description; it is inert while CONFIG_DRM_MESON is disabled.\n' "${DTB_NAME}"
 	else
 		printf -- '- zImage: arm64 Image built with the experimental GXLX2 HDMI patch set and Meson eMMC request clamp.\n'
-		printf -- '- %s: M302A DTB using amlogic,meson-gxlx2-dw-hdmi at 0xda800000 and conservative eMMC settings.\n' "${DTB_NAME}"
+		printf -- '- %s: M302A DTB using amlogic,meson-gxlx2-dw-hdmi at 0xda800000, conservative eMMC settings, and X96 GPIO LEDs.\n' "${DTB_NAME}"
 	fi
 	printf -- '- config-%s: kernel config used for this build.\n' "${kernel_release}"
 	printf -- '- System.map-%s: symbol map for diagnostics.\n' "${kernel_release}"
@@ -258,11 +309,18 @@ cp "${ROOT}/scripts/install-hdmi-test-os-disk.sh" "${out}/install-hdmi-test-os-d
 	if [ -n "${modules_tar_name}" ]; then
 		printf -- '- %s: stripped module tree for /lib/modules/%s.\n' "${modules_tar_name}" "${kernel_release}"
 	fi
+	if [ -n "${wifi_module_name}" ]; then
+		printf -- '- %s: RTL8189ES SDIO Wi-Fi module built for %s.\n' "${wifi_module_name}" "${kernel_release}"
+		printf -- '- install-8189es-module.sh: module-only RTL8189ES installer; it does not replace the DTB.\n'
+	fi
 	printf '\nSuggested board-side test after restoring SSH:\n\n'
 	if [ -n "${modules_tar_name}" ]; then
 		printf '    sudo tar -C / -xpf ./%s\n' "${modules_tar_name}"
 		printf '    sudo update-initramfs -c -k %s\n' "${kernel_release}"
 		printf '    sudo ./install-hdmi-test-boot.sh --kernel ./zImage --dtb ./%s --rollback-delay 300\n\n' "${DTB_NAME}"
+		if [ -n "${wifi_module_name}" ]; then
+			printf '    sudo ./install-8189es-module.sh ./%s\n\n' "${wifi_module_name}"
+		fi
 		printf 'Offline OS-disk install from another ARM64 Linux host:\n\n'
 		printf '    sudo ./install-hdmi-test-os-disk.sh \\\n'
 		printf '      --root-dir /mnt/x96root-rw \\\n'
@@ -272,8 +330,15 @@ cp "${ROOT}/scripts/install-hdmi-test-os-disk.sh" "${out}/install-hdmi-test-os-d
 		printf '      --dtb ./%s\n\n' "${DTB_NAME}"
 	else
 		printf '    sudo ./install-hdmi-test-boot.sh --kernel ./zImage --dtb ./%s --rollback-delay 300\n\n' "${DTB_NAME}"
+		if [ -n "${wifi_module_name}" ]; then
+			printf '    sudo ./install-8189es-module.sh ./%s\n\n' "${wifi_module_name}"
+		fi
 	fi
 	printf 'Expected eMMC queue after boot: /sys/block/mmcblk2/queue/max_hw_sectors_kb = 4.\n\n'
+	if [ -n "${wifi_module_name}" ]; then
+		printf 'Expected Wi-Fi after module install: SDIO device 024C:8179 bound to rtl8189es with wlan0/wlan1 present.\n\n'
+	fi
+	printf 'Expected LEDs after boot: /sys/class/leds/x96:blue:sys and /sys/class/leds/x96:blue:net.\n\n'
 	printf 'Keep the kernel image, DTB, modules, and regenerated uInitrd on the same kernel release. A stale initrd/module tree can reset the board at the /init handoff even after HDMI has bound successfully.\n'
 } >"${out}/README.md"
 
@@ -288,6 +353,9 @@ sha_files=(
 )
 if [ -n "${modules_tar_name}" ]; then
 	sha_files+=("${modules_tar_name}")
+fi
+if [ -n "${wifi_module_name}" ]; then
+	sha_files+=("${wifi_module_name}" install-8189es-module.sh)
 fi
 
 (
@@ -310,8 +378,12 @@ printf 'build_host=%s\n' "${KBUILD_BUILD_HOST}"
 printf 'build_jobs=%s\n' "${JOBS}"
 printf 'disable_meson_drm=%s\n' "${DISABLE_MESON_DRM}"
 printf 'build_modules=%s\n' "${BUILD_MODULES}"
+printf 'build_wifi=%s\n' "${BUILD_WIFI}"
 if [ -n "${modules_tar_name}" ]; then
 	printf 'modules_tar=%s\n' "${out}/${modules_tar_name}"
+fi
+if [ -n "${wifi_module_name}" ]; then
+	printf 'wifi_module=%s\n' "${out}/${wifi_module_name}"
 fi
 if [ "${ccache_enabled}" = "true" ]; then
 	printf 'ccache_dir=%s\n' "${CCACHE_DIR}"

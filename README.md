@@ -39,6 +39,9 @@ legacy timing only
 - `third_party/rtl8189ES_linux` - submodule pinned to the upstream driver commit used as the patch base.
 - `patches/rtl8189es-linux-6.18-cfg80211.patch` - the Linux 6.18 cfg80211 API patch.
 - `patches/meson-gxl-s905l3b-m302a-x96-leds.dts` - DTS source for the patched LED DTB.
+- `patches/hdmi/` - HDMI/eMMC kernel patch stack for `6.18.38-x96gxlx2-gnu15`, including the X96 LED DTB patch.
+- `scripts/build-hdmi-test-artifact.sh` - builds the HDMI/eMMC DTB/kernel bundle and the matching RTL8189ES module.
+- `scripts/install-8189es-module.sh` - installs only the RTL8189ES module for the running kernel and leaves the DTB untouched.
 
 ## Install On A Fresh Armbian Instance
 
@@ -70,6 +73,34 @@ The installer backs up the existing DTB as:
 ```text
 /boot/dtb/amlogic/meson-gxl-s905l3b-m302a.dtb.bak-YYYYMMDDHHMMSS
 ```
+
+## HDMI/eMMC Kernel Path
+
+Use this path for the newer `6.18.38-x96gxlx2-gnu15` HDMI/eMMC kernel. Build
+from the host:
+
+```sh
+scripts/build-hdmi-test-artifact.sh
+```
+
+For a fast rebuild when the kernel release is unchanged and only the DTB or
+external Wi-Fi module changed:
+
+```sh
+LOCALVERSION=-x96gxlx2-gnu15 BUILD_MODULES=false BUILD_WIFI=true scripts/build-hdmi-test-artifact.sh
+```
+
+The generated bundle contains `zImage`, `meson-gxl-s905l3b-m302a.dtb`,
+`8189es.ko`, and `install-8189es-module.sh`. Install the boot files with the
+guarded HDMI installer, then install Wi-Fi with:
+
+```sh
+sh ./install-8189es-module.sh ./8189es.ko
+```
+
+Do not use `artifacts/s905l3-x96/install-on-board.sh` on the HDMI/eMMC kernel
+state; that older all-in-one installer also replaces the DTB with the
+`6.18.37-ophub` LED DTB.
 
 ## Rebuild The Wi-Fi Module On The Board
 
@@ -168,9 +199,60 @@ fresh dmesg, reported `max_hw_sectors_kb=4`, and passed `fdisk -l
 /dev/mmcblk2`, 4 KiB direct reads from the beginning and end of the device,
 and a 1 MiB direct read without adding new kernel log lines.
 
-## Verified Result
+## Verified HDMI/eMMC/Wi-Fi/LED Result
 
-The installed board was verified after reboot:
+The current `6.18.38-x96gxlx2-gnu15` board state was verified after reboot:
+
+```text
+kernel=6.18.38-x96gxlx2-gnu15
+system_state=running
+hdmi_status=connected
+hdmi_enabled=enabled
+framebuffer=mesondrmfb
+module=8189es
+module_vermagic=6.18.38-x96gxlx2-gnu15
+sdio_driver=rtl8189es
+sdio_id=024C:8179
+wlan0=present
+wlan1=present
+wifi_scan=ok
+x96:blue:net
+x96:blue:sys
+sys_led_write=0->1
+net_led_write=1->0
+emmc_block=mmcblk2
+emmc_read_only=1
+emmc_max_hw_sectors_kb=4
+emmc_max_sectors_kb=4
+emmc_nomerges=2
+emmc_read_ahead_kb=0
+emmc_read_4k=ok
+```
+
+The verified LED DTB adds:
+
+```dts
+leds {
+	compatible = "gpio-leds";
+
+	led-sys {
+		label = "x96:blue:sys";
+		gpios = <&gpio GPIODV_24 GPIO_ACTIVE_HIGH>;
+		default-state = "on";
+		linux,default-trigger = "heartbeat";
+	};
+
+	led-net {
+		label = "x96:blue:net";
+		gpios = <&gpio_ao GPIOAO_9 GPIO_ACTIVE_HIGH>;
+		default-state = "off";
+	};
+};
+```
+
+## Legacy Verified Result
+
+The original `6.18.37-ophub` Wi-Fi/LED artifact was verified after reboot:
 
 ```text
 kernel=6.18.37-ophub

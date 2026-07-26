@@ -497,3 +497,69 @@ The board was rolled back to the DTB without that property.
 Caveat: `fdisk -l /dev/mmcblk2` reported only disk geometry, not a partition
 table. Treat this as verified eMMC enumeration and conservative read access,
 not yet a high-speed or mountable eMMC configuration.
+
+## Verified Wi-Fi And LED Merge
+
+The LED and Wi-Fi follow-up was verified on the same
+`6.18.38-x96gxlx2-gnu15` kernel build `#9`. The kernel image was left in
+place; only the M302A DTB was replaced with the HDMI/eMMC DTB plus X96 LED
+nodes, and the matching external RTL8189ES module was installed.
+
+The generated local artifact was:
+
+```text
+artifacts/hdmi-gxlx2/6.18.38-x96gxlx2-gnu15-20260726T023500Z
+zImage sha256: cb9d50cdd99e1e5b04e5da6a74409b46c76c3ff94dd3669177253a7ce309cb48
+dtb sha256: 1b2763e1980bce2bed68616b6414fe5e2b1e62d99abbc7ed079a340544003621
+8189es.ko sha256: 1b492e32b30d10582cf318ca12bf8fbe568ff88d3b4cfd91318aca790e29611f
+```
+
+The DTB contains:
+
+```dts
+leds {
+	compatible = "gpio-leds";
+
+	led-sys {
+		label = "x96:blue:sys";
+		gpios = <&gpio GPIODV_24 GPIO_ACTIVE_HIGH>;
+		default-state = "on";
+		linux,default-trigger = "heartbeat";
+	};
+
+	led-net {
+		label = "x96:blue:net";
+		gpios = <&gpio_ao GPIOAO_9 GPIO_ACTIVE_HIGH>;
+		default-state = "off";
+	};
+};
+```
+
+Runtime verification after reboot showed:
+
+```text
+systemd state: running
+/sys/class/leds/x96:blue:sys: present
+/sys/class/leds/x96:blue:net: present
+sys LED write: 0->1
+net LED write: 1->0
+/sys/class/drm/card0-HDMI-A-1/status: connected
+/sys/class/drm/card0-HDMI-A-1/enabled: enabled
+/sys/class/graphics/fb0/name: mesondrmfb
+8189es vermagic: 6.18.38-x96gxlx2-gnu15
+SDIO_ID: 024C:8179
+SDIO driver: rtl8189es
+wireless interfaces: wlan0, wlan1
+Wi-Fi scan: ok
+/sys/block/mmcblk2/queue/max_hw_sectors_kb: 4
+/sys/block/mmcblk2/queue/max_sectors_kb: 4
+/sys/block/mmcblk2/queue/nomerges: 2
+/sys/block/mmcblk2/queue/read_ahead_kb: 0
+/sys/block/mmcblk2/ro: 1
+4 KiB eMMC direct read: ok
+```
+
+The artifact builder now packages `8189es.ko` and
+`install-8189es-module.sh` by default. Use that module-only installer for the
+HDMI/eMMC kernel state; do not use the older all-in-one `s905l3-x96`
+installer because it also replaces the DTB with the pre-HDMI LED artifact.

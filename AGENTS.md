@@ -56,13 +56,41 @@ Do not add `amlogic,dram-access-quirk` to this GXL eMMC node. That DTB-only
 test made the card enumerate but caused `mmcblk` probe to fail with `error
 -22`, so `/dev/mmcblk2` was not created.
 
+## Wi-Fi And LED Verified State
+
+The verified combined HDMI/eMMC/Wi-Fi/LED state is still kernel
+`6.18.38-x96gxlx2-gnu15` build `#9`, with a newer DTB containing the X96
+front LED nodes and the matching external RTL8189ES module installed.
+Runtime verification after the LED DTB reboot showed:
+
+- System state: `running`
+- LED sysfs entries: `x96:blue:sys`, `x96:blue:net`
+- LED GPIO write checks: `sys_led_write=0->1`, `net_led_write=1->0`
+- HDMI: `connected`, `enabled`, framebuffer `mesondrmfb`
+- Wi-Fi module: `8189es`, vermagic `6.18.38-x96gxlx2-gnu15`
+- Wi-Fi SDIO device: `SDIO_ID=024C:8179`, `DRIVER=rtl8189es`
+- Interfaces: `wlan0`, `wlan1`; AP scan returned results
+- eMMC: `/dev/mmcblk2`, read-only, `max_hw_sectors_kb=4`, 4 KiB direct read
+  succeeded
+
+The current LED DTB patch is
+`patches/hdmi/0005-arm64-dts-amlogic-m302a-add-x96-leds.patch`. It adds
+`gpio-leds` entries from the Android DTB: `GPIODV_24` active-high for
+`x96:blue:sys` and `GPIOAO_9` active-high for `x96:blue:net`.
+
+Use `scripts/install-8189es-module.sh` for the `6.18.38-x96gxlx2-gnu15`
+Wi-Fi module. Do not use the older all-in-one
+`artifacts/s905l3-x96/install-on-board.sh` on the HDMI/eMMC test state,
+because it also replaces the DTB with the older non-HDMI artifact.
+
 ## Build Notes
 
 Use `scripts/build-hdmi-test-artifact.sh` for the HDMI/eMMC kernel and DTB
-bundle. The script defaults to `JOBS=2*nproc`, uses the local Arm GNU
-toolchain when present, and enables `ccache` automatically through
-`.cache/ccache` and `.cache/ccache-wrappers`. Keep that cache directory
-between builds.
+bundle. The script also builds/packages the external RTL8189ES Wi-Fi module by
+default (`BUILD_WIFI=true`) and includes the module-only installer. It defaults
+to `JOBS=2*nproc`, uses the local Arm GNU toolchain when present, and enables
+`ccache` automatically through `.cache/ccache` and `.cache/ccache-wrappers`.
+Keep that cache directory between builds.
 
 Normal builds must keep Meson DRM enabled. A previous boot-only eMMC artifact
 (`#8`) was built after a no-DRM diagnostic left `CONFIG_DRM_MESON` disabled in
