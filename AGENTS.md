@@ -66,17 +66,24 @@ test made the card enumerate but caused `mmcblk` probe to fail with `error
 ## Wi-Fi And LED Verified State
 
 The verified combined HDMI/eMMC/Wi-Fi/LED state is still kernel
-`6.18.38-x96gxlx2-gnu15` build `#9`, with a newer DTB containing the X96
-front LED nodes and the matching external RTL8189ES module installed.
-Runtime verification after the LED DTB reboot showed:
+`6.18.38-x96gxlx2-gnu15` build `#9`, with the X96 front LED DTB nodes and the
+matching external RTL8189ES module installed. Runtime verification after the
+single-interface Wi-Fi reboot showed:
 
 - System state: `running`
 - LED sysfs entries: `x96:blue:sys`, `x96:blue:net`
 - LED GPIO write checks: `sys_led_write=0->1`, `net_led_write=1->0`
 - HDMI: `connected`, `enabled`, framebuffer `mesondrmfb`
-- Wi-Fi module: `8189es`, vermagic `6.18.38-x96gxlx2-gnu15`
+- Wi-Fi module: `8189es`, vermagic `6.18.38-x96gxlx2-gnu15`,
+  srcversion `3590E40F0EF4B5E37F1FDDD`
+- Wi-Fi module SHA256:
+  `8fd51a045cf71d75c6392732870400d41dba079bcacd76768adb4b281adee6eb`
 - Wi-Fi SDIO device: `SDIO_ID=024C:8179`, `DRIVER=rtl8189es`
-- Interfaces: `wlan0`, `wlan1`; AP scan returned results
+- Kernel WLAN interface: `wlan0` only, connected
+- NetworkManager may still list `p2p-dev-wlan0`; that is a Wi-Fi P2P
+  placeholder, not a second kernel `wlan*` netdev
+- Fresh-boot dmesg counts: `wlan1=0`, `buddy_intf=0`, `ips_pwr_down=0`,
+  `cfg80211_ch_switch_notify=0`, `WARNING:=0`
 - eMMC: `/dev/mmcblk2`, read-only, `max_hw_sectors_kb=4`, 4 KiB direct read
   succeeded
 
@@ -89,6 +96,17 @@ Use `scripts/install-8189es-module.sh` for the `6.18.38-x96gxlx2-gnu15`
 Wi-Fi module. Do not use the older all-in-one
 `artifacts/s905l3-x96/install-on-board.sh` on the HDMI/eMMC test state,
 because it also replaces the DTB with the older non-HDMI artifact.
+
+Keep Realtek concurrent mode disabled in `src/rtl8189ES_linux/Makefile`
+(`CONFIG_CONCURRENT_MODE ?= n`). Enabling it creates `wlan0` and `wlan1` from
+the same RTL8189ES chip and NetworkManager repeatedly scans the unused second
+interface. Keep the module options conservative:
+`rtw_load_phy_file=0 rtw_ips_mode=0 rtw_power_mgnt=0 rtw_lps_level=0
+rtw_drv_log_level=2`.
+
+The local RTL8189ES source also guards `cfg80211_ch_switch_notify()` for STA
+mode until `_FW_LINKED` is set. Without that guard, fresh boot can trigger a
+kernel WARN from `net/wireless/nl80211.c` during association.
 
 ## Build Notes
 

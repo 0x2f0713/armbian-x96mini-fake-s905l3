@@ -116,13 +116,23 @@ sh scripts/build-8189es-on-board.sh
 
 The build script uses `-j1` because this class of board can run out of memory during a parallel driver build.
 
-The current module is built with Realtek concurrent mode enabled, so the driver exposes `wlan0` and `wlan1` from the same physical RTL8189ES chip. For a single interface build, edit `src/rtl8189ES_linux/Makefile`:
+The current module is built with Realtek concurrent mode disabled, so the
+driver exposes only `wlan0` from the physical RTL8189ES chip. Keep this
+default for stability:
 
 ```make
-CONFIG_CONCURRENT_MODE = n
+CONFIG_CONCURRENT_MODE ?= n
 ```
 
-Then rebuild and reinstall.
+The installer writes conservative module options that disable external PHY
+loading and Realtek IPS/LPS power saving:
+
+```text
+rtw_load_phy_file=0 rtw_ips_mode=0 rtw_power_mgnt=0 rtw_lps_level=0 rtw_drv_log_level=2
+```
+
+Rebuild and reinstall after changing either the kernel release or this driver
+source.
 
 ## Upstream Driver Submodule
 
@@ -211,7 +221,8 @@ and a 1 MiB direct read without adding new kernel log lines.
 
 ## Verified HDMI/eMMC/Wi-Fi/LED Result
 
-The current `6.18.38-x96gxlx2-gnu15` board state was verified after reboot:
+The current `6.18.38-x96gxlx2-gnu15` board state was verified after the
+single-interface RTL8189ES reboot:
 
 ```text
 kernel=6.18.38-x96gxlx2-gnu15
@@ -221,11 +232,18 @@ hdmi_enabled=enabled
 framebuffer=mesondrmfb
 module=8189es
 module_vermagic=6.18.38-x96gxlx2-gnu15
+module_srcversion=3590E40F0EF4B5E37F1FDDD
+module_sha256=8fd51a045cf71d75c6392732870400d41dba079bcacd76768adb4b281adee6eb
 sdio_driver=rtl8189es
 sdio_id=024C:8179
-wlan0=present
-wlan1=present
-wifi_scan=ok
+wlan_interfaces=wlan0
+wifi_link=connected
+nm_wifi_p2p_placeholder=p2p-dev-wlan0 disconnected
+wifi_dmesg_wlan1=0
+wifi_dmesg_buddy_intf=0
+wifi_dmesg_ips_pwr_down=0
+wifi_dmesg_cfg80211_ch_switch_notify=0
+wifi_dmesg_warning=0
 x96:blue:net
 x96:blue:sys
 sys_led_write=0->1

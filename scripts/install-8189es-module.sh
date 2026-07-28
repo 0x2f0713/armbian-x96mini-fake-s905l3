@@ -25,7 +25,7 @@ install -m 0644 "${module_path}" "${module_dir}/8189es.ko"
 depmod -a "${kver}"
 
 printf '%s\n' 8189es >/etc/modules-load.d/8189es.conf
-printf '%s\n' 'options 8189es rtw_load_phy_file=0' >/etc/modprobe.d/8189es.conf
+printf '%s\n' 'options 8189es rtw_load_phy_file=0 rtw_ips_mode=0 rtw_power_mgnt=0 rtw_lps_level=0 rtw_drv_log_level=2' >/etc/modprobe.d/8189es.conf
 
 if ! lsmod | grep -q '^8189es '; then
 	modprobe 8189es

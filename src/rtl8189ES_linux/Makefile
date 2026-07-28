@@ -20,7 +20,10 @@ ccflags-y += -Wno-date-time	# Fix compile error && warning on gcc 4.9 and later
 endif
 
 ccflags-y += -I$(src)/include
+CONFIG_CONCURRENT_MODE ?= n
+ifeq ($(CONFIG_CONCURRENT_MODE), y)
 ccflags-y += -DCONFIG_CONCURRENT_MODE
+endif
 ldflags-y += --strip-debug
 
 CONFIG_AUTOCFG_CP = n

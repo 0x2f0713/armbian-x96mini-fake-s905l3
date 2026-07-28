@@ -336,7 +336,7 @@ fi
 	fi
 	printf 'Expected eMMC queue after boot: /sys/block/mmcblk2/queue/max_hw_sectors_kb = 4.\n\n'
 	if [ -n "${wifi_module_name}" ]; then
-		printf 'Expected Wi-Fi after module install: SDIO device 024C:8179 bound to rtl8189es with wlan0/wlan1 present.\n\n'
+		printf 'Expected Wi-Fi after module install: SDIO device 024C:8179 bound to rtl8189es with a single wlan0 interface present.\n\n'
 	fi
 	printf 'Expected LEDs after boot: /sys/class/leds/x96:blue:sys and /sys/class/leds/x96:blue:net.\n\n'
 	printf 'Keep the kernel image, DTB, modules, and regenerated uInitrd on the same kernel release. A stale initrd/module tree can reset the board at the /init handoff even after HDMI has bound successfully.\n'

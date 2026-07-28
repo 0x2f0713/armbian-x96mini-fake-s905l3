@@ -409,6 +409,10 @@ static void rtw_get_chbw_from_nl80211_channel_type(struct ieee80211_channel *cha
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0))
 static bool rtw_cfg80211_allow_ch_switch_notify(_adapter *adapter)
 {
+	if (MLME_IS_STA(adapter) &&
+	    !check_fwstate(&adapter->mlmepriv, _FW_LINKED))
+		return 0;
+
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0))
 	if ((!MLME_IS_AP(adapter))
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0))

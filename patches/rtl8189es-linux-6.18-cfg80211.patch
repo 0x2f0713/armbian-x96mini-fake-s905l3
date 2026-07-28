@@ -1,7 +1,15 @@
 diff --git a/os_dep/linux/ioctl_cfg80211.c b/os_dep/linux/ioctl_cfg80211.c
-index 0343417..32a81f2 100644
+index 0343417..0e32b58 100644
 --- a/os_dep/linux/ioctl_cfg80211.c
 +++ b/os_dep/linux/ioctl_cfg80211.c
+@@ -410,3 +410,7 @@ static bool rtw_cfg80211_allow_ch_switch_notify(_adapter *adapter)
+ static bool rtw_cfg80211_allow_ch_switch_notify(_adapter *adapter)
+ {
++	if (MLME_IS_STA(adapter) &&
++	    !check_fwstate(&adapter->mlmepriv, _FW_LINKED))
++		return 0;
++
+ #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0))
 @@ -1681,7 +1681,7 @@ exit:
  }
  
