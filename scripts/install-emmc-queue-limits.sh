@@ -10,7 +10,7 @@ HOST_MATCH=${HOST_MATCH:-d0074000.mmc}
 MAX_SECTORS_KB=${MAX_SECTORS_KB:-4}
 NOMERGES=${NOMERGES:-2}
 READ_AHEAD_KB=${READ_AHEAD_KB:-0}
-READ_ONLY=${READ_ONLY:-1}
+READ_ONLY=${READ_ONLY:-0}
 WAIT_SECONDS=${WAIT_SECONDS:-30}
 
 usage() {
@@ -23,14 +23,15 @@ Usage:
 
 Installs or applies conservative block queue limits for the internal eMMC
 attached to the Amlogic d0074000.mmc host. The defaults are intentionally slow
-and read-only:
+but writable, so the helper is safe to copy into an eMMC-root install:
 
   MAX_SECTORS_KB=4
   NOMERGES=2
   READ_AHEAD_KB=0
-  READ_ONLY=1
+  READ_ONLY=0
 
-Override those values in the environment if needed.
+Override those values in the environment if needed. For non-destructive Android
+eMMC probing from SD, use READ_ONLY=1.
 EOF
 }
 

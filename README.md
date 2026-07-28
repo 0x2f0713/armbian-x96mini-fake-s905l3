@@ -35,7 +35,7 @@ legacy timing only
 - `artifacts/s905l3-x96/8189es.ko` - prebuilt RTL8189ES module for `6.18.37-ophub`.
 - `artifacts/s905l3-x96/meson-gxl-s905l3b-m302a.dtb` - DTB with `gpio-leds` nodes and conservative eMMC timing for this board.
 - `artifacts/s905l3-x96/install-on-board.sh` - installs the module, autoload config, module options, and DTB.
-- `artifacts/s905l3-x96/install-emmc-queue-limits.sh` - installs boot-time queue limits for reliable read-only eMMC access.
+- `artifacts/s905l3-x96/install-emmc-queue-limits.sh` - installs boot-time queue limits for reliable eMMC access.
 - `artifacts/s905l3-x96/verify-on-board.sh` - checks module binding, Wi-Fi visibility, scans, LED sysfs controls, and eMMC detection.
 - `src/rtl8189ES_linux/` - patched RTL8189ES source based on `https://github.com/jwrdegoede/rtl8189ES_linux` commit `2d9a8af`.
 - `third_party/rtl8189ES_linux` - submodule pinned to the upstream driver commit used as the patch base.
@@ -198,8 +198,11 @@ issue larger reads. The runtime safety service still applies:
 max_sectors_kb = 4
 nomerges = 2
 read_ahead_kb = 0
-read-only block device
+READ_ONLY = 0
 ```
+
+For non-destructive Android/eMMC probing from SD, run the helper with
+`READ_ONLY=1`.
 
 After installation, the eMMC should appear under the `d0074000.mmc` host, for example:
 
@@ -209,7 +212,9 @@ After installation, the eMMC should appear under the `d0074000.mmc` host, for ex
 /dev/mmcblk2boot1
 ```
 
-The main eMMC device may not contain a usable partition table. Partitioning or formatting it is a separate destructive step and is not done by the installer.
+Before installing, the raw Android eMMC may not contain a Linux-usable partition
+table. `armbian-install` is the destructive partitioning and formatting step;
+keep probing read-only until you intentionally run it.
 
 The older `6.18.37-ophub` Wi-Fi/LED artifact does not include the kernel-side
 MMC host clamp, so it relies on the queue-limit service after userspace starts.
@@ -218,6 +223,30 @@ The latest verified `6.18.38-x96gxlx2-gnu15` boot had no eMMC I/O errors in
 fresh dmesg, reported `max_hw_sectors_kb=4`, and passed `fdisk -l
 /dev/mmcblk2`, 4 KiB direct reads from the beginning and end of the device,
 and a 1 MiB direct read without adding new kernel log lines.
+
+## Verified eMMC Install Result
+
+`armbian-install -a yes` was run from SD to internal eMMC using model ID `127`
+and ext4. The eMMC boot partition filled when the installer copied stale test
+artifacts, so the installed BOOT_EMMC was pruned to the current kernel/DTB and
+required U-Boot files. The generated `uEnv.txt` was also corrected from the
+SD-card root UUID to the eMMC ROOTFS UUID.
+
+```text
+target=/dev/mmcblk2
+boot=/dev/mmcblk2p1 vfat BOOT_EMMC UUID=6B8F-105F
+root=/dev/mmcblk2p2 ext4 ROOTFS_EMMC UUID=66fdf15e-b8d1-40f1-9e13-507cd9036109
+model_id=127
+rootfs_type=ext4
+boot_used=20%
+root_used=51%
+queue_helper=READ_ONLY=${READ_ONLY:-0}
+fsck_vfat=ok
+fsck_ext4_readonly=ok
+```
+
+After installation, power off, remove the SD card, and power on to test eMMC
+boot.
 
 ## Verified HDMI/eMMC/Wi-Fi/LED Result
 

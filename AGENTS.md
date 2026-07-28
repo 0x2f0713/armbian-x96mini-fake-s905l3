@@ -42,17 +42,21 @@ matching DTB property. Runtime verification showed:
 - eMMC clock: `20000000 Hz`, legacy timing
 - Kernel hardware queue clamp: `max_hw_sectors_kb=4`
 - Runtime safety queue settings: `max_sectors_kb=4`, `nomerges=2`,
-  `read_ahead_kb=0`, default read-only
+  `read_ahead_kb=0`
 - eMMC read benchmark: 1 MiB direct read at about `2.2 MB/s`
 - HDMI: `/sys/class/drm/card0-HDMI-A-1/status=connected`,
   `enabled=enabled`, framebuffer `mesondrmfb`
 
-Keep eMMC checks read-only by default. Without the kernel-side request clamp,
+Keep Android/eMMC inspection checks read-only by default. Without the kernel-side request clamp,
 early `mmcblk` and userspace reads can report `Input/output error` before the
 systemd queue-limit service has a chance to run. With the clamp active,
 fresh-boot dmesg had no eMMC I/O errors, `fdisk -l /dev/mmcblk2` succeeded,
 4 KiB direct reads from the start and end of the device succeeded, and a 1 MiB
 direct read completed without adding new kernel log lines.
+
+For an installed eMMC root filesystem, do not force `/dev/mmcblk2` read-only.
+The queue-limit helper default is now `READ_ONLY=0`; set `READ_ONLY=1`
+explicitly only for SD-card based, non-destructive Android/eMMC probing.
 
 The original 400 kHz fallback read at about `49 kB/s`; 20 MHz legacy timing is
 the verified fast profile. A 25 MHz DTB reached Linux from microSD but failed
@@ -136,3 +140,31 @@ guarded installer created `/boot/hdmi-test-backups/20260725T221523Z`.
 For eMMC speed tests, use `scripts/build-emmc-speed-test-dtbs.sh` to generate
 DTB-only frequency-sweep artifacts and `scripts/benchmark-emmc-read.sh` on the
 board. Test in ascending frequency order with the guarded rollback installer.
+
+## eMMC Install Verified State
+
+`armbian-install -a yes` was run from SD to internal eMMC using model ID `127`
+and ext4. The generated eMMC boot `uEnv.txt` initially kept the SD-card root
+UUID, so it was corrected to the eMMC ROOTFS UUID before unmounting.
+
+Verified installed layout:
+
+- Target: `/dev/mmcblk2`
+- Partition table: MBR
+- BOOT_EMMC: `/dev/mmcblk2p1`, vfat, UUID `6B8F-105F`, about 20% used after
+  pruning stale boot artifacts
+- ROOTFS_EMMC: `/dev/mmcblk2p2`, ext4, UUID
+  `66fdf15e-b8d1-40f1-9e13-507cd9036109`, about 51% used
+- eMMC boot files present: `zImage`, `uInitrd`,
+  `initrd.img-6.18.38-x96gxlx2-gnu15`,
+  `dtb/amlogic/meson-gxl-s905l3b-m302a.dtb`, `u-boot.ext`, `u-boot.emmc`
+- eMMC root metadata: `MODEL_ID='127'`, `FDTFILE='meson-gxl-s905l3b-m302a.dtb'`,
+  `BOOT_CONF='uEnv.txt'`, `DISK_TYPE='emmc'`, `AMPART_STATUS='yes'`
+- eMMC root queue helper default: `READ_ONLY=${READ_ONLY:-0}`
+- Wi-Fi module/options copied into eMMC root match the verified single-interface
+  RTL8189ES setup
+
+Final verification after install: `fsck.vfat -n /dev/mmcblk2p1` and
+`e2fsck -fn /dev/mmcblk2p2` completed, no eMMC partitions were left mounted,
+`/dev/mmcblk2` remained writable (`getro=0`), and the system had 0 failed units.
+The board-side result log is `/root/armbian-install-emmc-result.log`.
